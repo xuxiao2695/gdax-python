@@ -14,7 +14,7 @@ from gdax.websocket_client import WebsocketClient
 
 class OrderBook(WebsocketClient):
     def __init__(self, product_id='BTC-USD', log_to=None, log_snapshot_to=None):
-        super(OrderBook, self).__init__(products=product_id)
+        super(OrderBook, self).__init__(products=[product_id])
         self._asks = RBTree()
         self._bids = RBTree()
         self._sequence = -1
@@ -33,8 +33,6 @@ class OrderBook(WebsocketClient):
 
     def on_open(self):
         self._sequence = -1
-        self.reset_book()
-        pickle.dump(self.get_current_book(), self._log_snapshot_to)
         print("-- Subscribed to OrderBook! --\n")
 
     def on_close(self):
@@ -43,12 +41,9 @@ class OrderBook(WebsocketClient):
     def reset_book(self):
         self._asks = RBTree()
         self._bids = RBTree()
-        res = None
-        while not res:
-            try:
-                res = PublicClient().get_product_order_book(product_id=self.product_id, level=3)
-            except:
-                pass
+        res = {}
+        while 'bids' not in res.keys():
+            res = PublicClient().get_product_order_book(product_id=self.product_id, level=3)
         for bid in res['bids']:
             self.add({
                 'id': bid[2],
@@ -72,6 +67,7 @@ class OrderBook(WebsocketClient):
         sequence = message['sequence']
         if self._sequence == -1:
             self.reset_book()
+            pickle.dump(self.get_current_book(), self._log_snapshot_to)
             return
         if sequence <= self._sequence:
             # ignore older messages (e.g. before order book initialization from getProductOrderBook)
@@ -95,9 +91,9 @@ class OrderBook(WebsocketClient):
 
     def on_sequence_gap(self, gap_start, gap_end):
         self.reset_book()
+        pickle.dump(self.get_current_book(), self._log_snapshot_to)
         print('Error: messages missing ({} - {}). Re-initializing  book at sequence.'.format(
             gap_start, gap_end, self._sequence))
-        pickle.dump(self.get_current_book(), self._log_snapshot_to)
 
 
     def add(self, order):
