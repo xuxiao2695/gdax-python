@@ -33,6 +33,8 @@ class OrderBook(WebsocketClient):
 
     def on_open(self):
         self._sequence = -1
+        self.reset_book()
+        pickle.dump(self.get_current_book(), self._log_snapshot_to)
         print("-- Subscribed to OrderBook! --\n")
 
     def on_close(self):
