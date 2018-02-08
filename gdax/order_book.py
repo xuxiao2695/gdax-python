@@ -13,14 +13,17 @@ from gdax.websocket_client import WebsocketClient
 
 
 class OrderBook(WebsocketClient):
-    def __init__(self, product_id='BTC-USD', log_to=None):
+    def __init__(self, product_id='BTC-USD', log_to=None, log_snapshot_to=None):
         super(OrderBook, self).__init__(products=product_id)
         self._asks = RBTree()
         self._bids = RBTree()
         self._sequence = -1
         self._log_to = log_to
+        self._log_snapshot_to = log_snapshot_to
         if self._log_to:
             assert hasattr(self._log_to, 'write')
+        if self._log_snapshot_to:
+            assert hasattr(self._log_snapshot_to, 'write')
         self._current_ticker = None
 
     @property
@@ -38,7 +41,12 @@ class OrderBook(WebsocketClient):
     def reset_book(self):
         self._asks = RBTree()
         self._bids = RBTree()
-        res = PublicClient().get_product_order_book(product_id=self.product_id, level=3)
+        res = None
+        while not res:
+            try:
+                res = PublicClient().get_product_order_book(product_id=self.product_id, level=3)
+            except:
+                pass
         for bid in res['bids']:
             self.add({
                 'id': bid[2],
@@ -87,6 +95,7 @@ class OrderBook(WebsocketClient):
         self.reset_book()
         print('Error: messages missing ({} - {}). Re-initializing  book at sequence.'.format(
             gap_start, gap_end, self._sequence))
+        pickle.dump(self.get_current_book(), self._log_snapshot_to)
 
 
     def add(self, order):
