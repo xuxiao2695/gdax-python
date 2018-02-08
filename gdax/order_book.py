@@ -67,7 +67,8 @@ class OrderBook(WebsocketClient):
         sequence = message['sequence']
         if self._sequence == -1:
             self.reset_book()
-            pickle.dump(self.get_current_book(), self._log_snapshot_to)
+            if self._log_snapshot_to:
+                pickle.dump(self.get_current_book(), self._log_snapshot_to)
             return
         if sequence <= self._sequence:
             # ignore older messages (e.g. before order book initialization from getProductOrderBook)
@@ -91,7 +92,8 @@ class OrderBook(WebsocketClient):
 
     def on_sequence_gap(self, gap_start, gap_end):
         self.reset_book()
-        pickle.dump(self.get_current_book(), self._log_snapshot_to)
+        if self._log_snapshot_to:
+            pickle.dump(self.get_current_book(), self._log_snapshot_to)
         print('Error: messages missing ({} - {}). Re-initializing  book at sequence.'.format(
             gap_start, gap_end, self._sequence))
 
